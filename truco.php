@@ -89,17 +89,61 @@ class Deck {
 	}
 }
 
+define('MENU', 0);
+define('PLAYERWAIT', 1);
+define('GAME', 2);
+define('END', 3);
 class Game {
+	var $state;
 	var $created;
 	var $players;
-	var $deck;
-	var $hands;
 	var $score;
+	var $deck;
+
 	var $matchs; // cada partida dentro do jogo q vai ate 12
 	var $match; //handle to last one (active)
+
+
+	var $hands;
 	function __construct(){
 		$this->create = time();
-		$this->players = Array(0, 1);// TODO: player objects
+		$this->state = MENU;
+	}
+	public function arrange( $numplayers ){
+		if( ($numplayers % 2) !== 0 ) die('impar');
+		switch( $numplayers ){
+			case 2:
+			case 4:
+			case 6:
+				break;
+			default:
+				die( 'bogus number of players' );
+		}
+		$this->players = array_fill( 0, $numplayers, null );
+		$this->state = PLAYERWAIT;
+	}
+	public function checkPlayer( $player, $hash ){
+		//TODO: on sit() save a hash+salt and give as a cookie to the player.
+		//      only return true here if player and hash matches
+		return true;
+	}
+	public function sit( $place, $name ){ // sit player at table
+		// is space empty?
+		if( !empty( $this->players[$place] ) ){
+			die( 'place already taken' );
+		}
+		$this->players[$place] = $name;
+		foreach( $this->players as $k=>$p ){
+			if( empty($p) ){
+				die($k);
+				return false; // we are still missing players
+			}
+		}
+		$this->start();
+	}
+	private function start(){
+		die( starting );
+		$this->state = GAME;
 		$this->deck = new Deck();
 		$this->hands = array_fill( 0, count($this->players), Array(null, null, null) );
 		$this->score = array_fill( 0, count($this->players), 0 );
@@ -229,14 +273,27 @@ if( false === $game ){
 	$game = new Game();
 }
 
-# any action
-if( $player !== false ){
-	if( $game->isPlayerTurn($player) ){ # are we waiting for the player to play?
-		echo " sua vez";
-		if( isset($_GET['play']) ){ #player is playing a card
-			$play = (int)$_GET['play'];
-			var_dump($play);
-			$game->play( $player, $play );
+# INPUT
+var_dump($game->state);
+if( $game->state === MENU ){
+	if( $player === 0 && isset($_GET['numplayers']) ){
+		$game->arrange( (int)$_GET['numplayers'] );
+		$game->sit( 0 , $_GET['name'] );
+}elseif( $game->state === PLAYERWAIT ){
+	}elseif( $player > 0 && isset($_GET['name']) ){
+		echo "ok";
+		$game->sit( $player , $_GET['name'] );
+	}
+
+}elseif( $game->state === GAME ){
+	if( $player !== false ){
+		if( $game->isPlayerTurn($player) ){ # are we waiting for the player to play?
+			echo " sua vez";
+			if( isset($_GET['play']) ){ #player is playing a card
+				$play = (int)$_GET['play'];
+				var_dump($play);
+				$game->play( $player, $play );
+			}
 		}
 	}
 }
@@ -305,6 +362,27 @@ player 3: nove!<br/>
 player 1: doze marreco!
 </div>-->
 <div id=x class=middle>
+
+<?php if($game->state === MENU){ ?>
+<div id=menu>
+<a href="#" onClick="name=prompt('name?');window.location.href='http://localhost/truco/truco.php?id=<?=$gameid?>&player=<?=$player?>&numplayers=2&name='+name">1 por time</a><br/>
+<a href="?id=<?=$gameid?>&player=<?=$player?>&numplayers=4&name=Gabriel">2 por time</a><br/>
+<a href="?id=<?=$gameid?>&player=<?=$player?>&numplayers=6&name=Gabriel">3 por time</a><br/>
+</div>
+<?php }elseif($game->state === PLAYERWAIT){ ?>
+Waiting for players</br>
+	<?php $i = 0; foreach( $game->players as $p ){ ?>
+		<?php if($p){ ?>
+			<?=$p?>
+		<? }else{ #if( $player === false ){ ?>
+			<a href="#" onClick="name=prompt('Name?');window.location.href='http://localhost/truco/truco.php?id=<?=$gameid?>&player=<?=$i?>&name='+name;">Join</a>
+		<? #}else{ ?>
+			???
+		<?php } ?>
+		<br/>
+	<?php $i++; } ?>
+<?php }else{ ?>
+
 	<div id=score>
 		<table><tr><td>player</td><td>Score</td><td colspan=3>rounds</td></tr>
 		<?php foreach( $game->players as $p ){ ?>
@@ -334,9 +412,9 @@ mesa:
 <hr>
 
 	<div id=hand class=playerhand>Your hand:
-		<div id=card1 class=card><?=$game->hands[$player][0]?> <a href="http://localhost/truco/table.php?id=<?=$gameid?>&player=<?=$player?>&play=0">jogar</a></div>
-		<div id=card1 class=card><?=$game->hands[$player][1]?> <a href="http://localhost/truco/table.php?id=<?=$gameid?>&player=<?=$player?>&play=1">jogar</a></div>
-		<div id=card1 class=card><?=$game->hands[$player][2]?> <a href="http://localhost/truco/table.php?id=<?=$gameid?>&player=<?=$player?>&play=2">jogar</a></div>
+		<div id=card1 class=card><?=$game->hands[$player][0]?> <a href="http://localhost/truco/truco.php?id=<?=$gameid?>&player=<?=$player?>&play=0">jogar</a></div>
+		<div id=card1 class=card><?=$game->hands[$player][1]?> <a href="http://localhost/truco/truco.php?id=<?=$gameid?>&player=<?=$player?>&play=1">jogar</a></div>
+		<div id=card1 class=card><?=$game->hands[$player][2]?> <a href="http://localhost/truco/truco.php?id=<?=$gameid?>&player=<?=$player?>&play=2">jogar</a></div>
 	</div>
 </div>
 
@@ -394,5 +472,8 @@ function gameLoop(){
 	}
 }
 </script>
+
+<?php } ?>
+
 </body>
 </html>
